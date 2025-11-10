@@ -1,7 +1,8 @@
 from flask import Flask, request, jsonify, send_from_directory, send_file, render_template_string
 from werkzeug.utils import secure_filename
 from github import Github
-import os, zipfile, io, datetime,re
+import os, zipfile, io, datetime
+import re
 
 # ------------------------------
 # 基本配置
@@ -219,23 +220,28 @@ GITHUB_REPO = os.getenv("GITHUB_REPO")
 
 def upload_file():
     try:
-        f = request.files["file"]
+        f = request.files.get("file")
+        if not f:
+            return "未检测到上传文件，请重试", 400
+
         name = request.form.get("name", "unknown").strip()
         rel_path = request.form.get("path", "").strip("/")
         folder_path = os.path.join(UPLOAD_ROOT, rel_path)
         os.makedirs(folder_path, exist_ok=True)
 
-        # ✅ 取原文件名（支持中文）
+        # ✅ 处理文件名（保留中文，但去掉非法符号）
         raw_filename = os.path.basename(f.filename or "")
         if not raw_filename:
             return "未检测到文件名", 400
+        name_root, ext = os.path.splitext(raw_filename)
+        safe_root = re.sub(r'[<>:"/\\|?*]', "_", name_root)
+        filename = f"{name}_{safe_root}{ext}"
 
-        # ✅ 组合命名：姓名_原文件名
-        filename = f"{name}_{raw_filename}"
         save_path = os.path.join(folder_path, filename)
         f.save(save_path)
+        print(f"✅ 文件已保存到本地: {save_path}")
 
-        # ☁️ GitHub 同步
+        # ☁️ GitHub 同步逻辑
         if GITHUB_TOKEN and GITHUB_REPO:
             g = Github(GITHUB_TOKEN)
             repo = g.get_repo(GITHUB_REPO)
@@ -247,15 +253,16 @@ def upload_file():
             try:
                 existing_file = repo.get_contents(github_path)
                 repo.update_file(github_path, f"Update {filename}", content, existing_file.sha)
-                print(f"✅ 更新 GitHub 文件：{github_path}")
-            except Exception:
+                print(f"✅ 已更新 GitHub 文件：{github_path}")
+            except Exception as e:
+                # 若文件不存在则新建
                 repo.create_file(github_path, f"Add {filename}", content)
-                print(f"✅ 创建 GitHub 文件：{github_path}")
+                print(f"✅ 已创建 GitHub 文件：{github_path}")
 
         return f"文件 {filename} 上传成功 ✅"
 
     except Exception as e:
-        # 捕获错误方便你在 Render 日志里看到原因
+        # 在 Render 日志中能看到详细报错
         print("❌ 上传失败：", e)
         return f"上传时发生错误：{str(e)}", 500
 
@@ -335,6 +342,7 @@ def download_folder():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
+
 
 
 
