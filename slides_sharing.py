@@ -217,7 +217,19 @@ def upload_file():
     rel_path = request.form.get("path", "").strip("/")
     folder_path = safe_join(UPLOAD_ROOT, rel_path)
     os.makedirs(folder_path, exist_ok=True)
-    filename = secure_filename(f"{uploader}_{f.filename}")
+
+    # 1️⃣ 获取干净的原始文件名
+    raw_name = os.path.basename(f.filename)
+    name_root, ext = os.path.splitext(raw_name)
+    ext = ext or ""  # 防止无扩展名
+
+    # 2️⃣ 安全清理英文部分（保留中文）
+    safe_root = re.sub(r'[<>:"/\\|?*]', '_', name_root)
+
+    # 3️⃣ 生成最终文件名：姓名_时间戳_原名.扩展名
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"{uploader}_{timestamp}_{safe_root}{ext}"
+
     save_path = os.path.join(folder_path, filename)
     f.save(save_path)
 
@@ -313,3 +325,4 @@ def download_folder():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
+
