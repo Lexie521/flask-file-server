@@ -14,9 +14,9 @@ UPLOAD_ROOT = os.path.join(BASE_DIR, "uploads")
 os.makedirs(UPLOAD_ROOT, exist_ok=True)
 
 # GitHub 同步配置（环境变量中设置）
-GITHUB_TOKEN = os.getenv("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")
-GITHUB_REPO = os.getenv("Lexie521/flask-file-server")  
 
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")          # 在 Render 面板里设置
+GITHUB_REPO  = os.getenv("GITHUB_REPO")           # 形如  Lexie521/flask-file-server
 # ------------------------------
 # 前端 HTML 模板
 # ------------------------------
@@ -212,12 +212,6 @@ def list_files():
     return jsonify({"current": rel_path, "items": items})
 
 @app.route("/upload", methods=["POST"])
-
-
-UPLOAD_ROOT = "uploads"
-GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
-GITHUB_REPO = os.getenv("GITHUB_REPO")
-
 def upload_file():
     try:
         f = request.files.get("file")
@@ -342,6 +336,7 @@ def download_folder():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
+
 
 
 
