@@ -213,61 +213,51 @@ def list_files():
 @app.route("/upload", methods=["POST"])
 
 
+UPLOAD_ROOT = "uploads"  # 确保此路径存在
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
+GITHUB_REPO = os.getenv("GITHUB_REPO")
+
 def upload_file():
-    f = request.files["file"]
-    name = request.form.get("name", "unknown").strip()
-    rel_path = request.form.get("path", "").strip("/")
-    folder_path = safe_join(UPLOAD_ROOT, rel_path)
-    os.makedirs(folder_path, exist_ok=True)
+    try:
+        f = request.files["file"]
+        name = request.form.get("name", "unknown").strip()
+        rel_path = request.form.get("path", "").strip("/")
+        folder_path = os.path.join(UPLOAD_ROOT, rel_path)
+        os.makedirs(folder_path, exist_ok=True)
 
-    # ✅ 保留原始中文文件名，不破坏扩展名
-    raw_filename = os.path.basename(f.filename or "")
-    if not raw_filename:
-        return "未检测到文件名", 400
+        # ✅ 取原文件名（支持中文）
+        raw_filename = os.path.basename(f.filename or "")
+        if not raw_filename:
+            return "未检测到文件名", 400
 
-    # ✅ 组合成 姓名_原文件名
-    filename = f"{name}_{raw_filename}"
-    save_path = os.path.join(folder_path, filename)
+        # ✅ 组合命名：姓名_原文件名
+        filename = f"{name}_{raw_filename}"
+        save_path = os.path.join(folder_path, filename)
+        f.save(save_path)
 
-    # ✅ 保存文件（覆盖同名）
-    f.save(save_path)
-
-    # ☁️ 同步至 GitHub（可选）
-    if GITHUB_TOKEN and GITHUB_REPO:
-        try:
+        # ☁️ GitHub 同步
+        if GITHUB_TOKEN and GITHUB_REPO:
             g = Github(GITHUB_TOKEN)
             repo = g.get_repo(GITHUB_REPO)
-
-            # 计算相对路径，保证在 GitHub 仓库中也按目录存储
             github_path = os.path.join("uploads", rel_path, filename).replace("\\", "/")
 
             with open(save_path, "rb") as fp:
                 content = fp.read()
 
-            # 检查文件是否已存在（若存在则更新）
             try:
                 existing_file = repo.get_contents(github_path)
-                repo.update_file(
-                    github_path,
-                    f"Update {filename}",
-                    content,
-                    existing_file.sha
-                )
-                print(f"✅ GitHub 文件已更新：{github_path}")
+                repo.update_file(github_path, f"Update {filename}", content, existing_file.sha)
+                print(f"✅ 更新 GitHub 文件：{github_path}")
             except Exception:
-                repo.create_file(
-                    github_path,
-                    f"Add {filename}",
-                    content
-                )
-                print(f"✅ GitHub 文件已创建：{github_path}")
+                repo.create_file(github_path, f"Add {filename}", content)
+                print(f"✅ 创建 GitHub 文件：{github_path}")
 
-        except Exception as e:
-            print("⚠️ GitHub 同步失败：", e)
+        return f"文件 {filename} 上传成功 ✅"
 
-    return f"文件 {filename} 上传成功 ✅"
-
-
+    except Exception as e:
+        # 捕获错误方便你在 Render 日志里看到原因
+        print("❌ 上传失败：", e)
+        return f"上传时发生错误：{str(e)}", 500
 
 @app.route("/delete", methods=["DELETE"])
 def delete_file():
@@ -345,6 +335,7 @@ def download_folder():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
+
 
 
 
