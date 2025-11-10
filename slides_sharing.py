@@ -214,7 +214,7 @@ def list_files():
 @app.route("/upload", methods=["POST"])
 
 
-UPLOAD_ROOT = "uploads"  # 确保此路径存在
+UPLOAD_ROOT = "uploads"
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 GITHUB_REPO = os.getenv("GITHUB_REPO")
 
@@ -342,6 +342,7 @@ def download_folder():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
+
 
 
 
