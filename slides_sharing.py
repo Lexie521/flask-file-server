@@ -211,6 +211,7 @@ def list_files():
     return jsonify({"current": rel_path, "items": items})
 
 @app.route("/upload", methods=["POST"])
+
 def upload_file():
     f = request.files["file"]
     uploader = request.form.get("name", "anonymous").strip()
@@ -226,14 +227,13 @@ def upload_file():
     # 2️⃣ 安全清理英文部分（保留中文）
     safe_root = re.sub(r'[<>:"/\\|?*]', '_', name_root)
 
-    # 3️⃣ 生成最终文件名：姓名_时间戳_原名.扩展名
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"{uploader}_{timestamp}_{safe_root}{ext}"
+    # ✅ 3️⃣ 生成最终文件名（不带时间戳）
+    filename = f"{uploader}_{safe_root}{ext}"
 
     save_path = os.path.join(folder_path, filename)
     f.save(save_path)
 
-    # 同步至 GitHub（如配置了 Token）
+    # ☁️ 同步至 GitHub（如配置了 Token）
     if GITHUB_TOKEN and GITHUB_REPO:
         try:
             g = Github(GITHUB_TOKEN)
@@ -248,6 +248,7 @@ def upload_file():
             print("GitHub 同步失败：", e)
 
     return f"文件 {filename} 上传成功 ✅"
+
 
 @app.route("/delete", methods=["DELETE"])
 def delete_file():
@@ -325,4 +326,5 @@ def download_folder():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
+
 
